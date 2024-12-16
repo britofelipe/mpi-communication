@@ -15,7 +15,17 @@ Vout = np.zeros(n,np.float64)
 Norm = np.zeros(1,np.float64)
 Res = np.zeros(1,np.float64)
 
+TabRes = None
+
+if Me == 0:
+    TabRes = np.empty(NbP, dtype=np.float64)
+
 # Init of local V and M arrays from data files
+
+# Buffer
+buffer_size = MPI.BSEND_OVERHEAD + V.nbytes
+buffer = np.empty(buffer_size)
+MPI.Attach_buffer(buffer) 
 
 # Computation-Communication LOOP:
 for i in range (NbP):
@@ -27,7 +37,14 @@ for i in range (NbP):
     # Data circulation (of V array)
     dest = (Me + 1) % NbP 
     source = (Me - 1 + NbP) % NbP
-    comm.Sendrecv_replace(V, dest=dest, source=source)
+
+    comm.Bsend(V, dest=dest)
+    comm.Recv(V, source=source)
+
+MPI.Detach_buffer()
+
+# Gather results
+comm.Gather(Res, TabRes, root=0)
 
 if Me == 0:
-    print("Final result: ", Res[0])
+    print("Gather (root 0): TabRes =", TabRes)
